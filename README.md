@@ -44,6 +44,8 @@ to open a live channel to the server as follows:
 
 ```
 
+Please, check `Session.java` for examples.
+
 ## Licensing
 
 SwellRT and this Client are provided under the Apache License 2.0. Please check additional licenses for declared dependecies in pom.xml file.
