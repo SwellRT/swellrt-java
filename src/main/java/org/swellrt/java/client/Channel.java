@@ -13,6 +13,7 @@ import org.swellrt.java.wave.client.concurrencycontrol.MuxConnector.Command;
 import org.swellrt.model.generic.Model;
 import org.swellrt.model.generic.TextType;
 import org.swellrt.model.generic.TypeIdGenerator;
+import org.swellrt.model.shared.ModelUtils;
 import org.waveprotocol.wave.concurrencycontrol.common.UnsavedDataListener;
 import org.waveprotocol.wave.concurrencycontrol.wave.CcDataDocumentImpl;
 import org.waveprotocol.wave.model.document.WaveContext;
@@ -119,7 +120,8 @@ public class Channel {
       public void execute() {
 
         WaveContext wave = loader.getWaveContext();
-        Model model = Model.create(wave, domain, session.getParticipantId(), false, idGenerator);
+        Model model = Model.create(wave.getWave(), domain, session.getParticipantId(), false,
+            idGenerator);
         waveStore.put(waveRef, new Pair<WaveLoader, Model>(loader, model));
 
         callback.onSuccess(model);
@@ -148,7 +150,8 @@ public class Channel {
       public void execute() {
 
         WaveContext wave = loader.getWaveContext();
-        Model model = Model.create(wave, domain, session.getParticipantId(), true, idGenerator);
+        Model model = Model.create(wave.getWave(), domain, session.getParticipantId(), true,
+            idGenerator);
 
         waveStore.put(waveRef, new Pair<WaveLoader, Model>(loader, model));
 
@@ -190,7 +193,7 @@ public class Channel {
       return null;
 
     return waveStore.get(waveRef).getFirst().getDocumentRegistry()
-        .getBlipDocument(text.getModel().getWaveletIdString(), text.getDocumentId());
+        .getBlipDocument(ModelUtils.serialize(text.getModel().getWaveletId()), text.getDocumentId());
   }
 
   public void close() {

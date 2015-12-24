@@ -108,7 +108,7 @@
   <dependency>
    <groupId>org.swellrt</groupId>
    <artifactId>swellrt-client-commons</artifactId>
-   <version>0.10.0-alpha</version>
+   <version>0.13.0-alpha</version>
   </dependency>
 
  </dependencies>

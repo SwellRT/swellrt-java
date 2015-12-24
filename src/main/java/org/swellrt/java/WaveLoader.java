@@ -265,7 +265,7 @@ public class WaveLoader {
 
     ArrayList<String> prefixes = new ArrayList<String>();
     prefixes.add(IdConstants.CONVERSATION_WAVELET_PREFIX);
-    prefixes.add(Model.WAVELET_ID_PREFIX);
+    prefixes.add(Model.WAVELET_SWELL_PREFIX);
 
     final IdFilter filter = IdFilter.of(Collections.singleton(udwId), prefixes);
 
