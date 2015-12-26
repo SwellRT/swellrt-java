@@ -87,16 +87,15 @@ public class DefaultAHCProvider implements AHCProvider {
 
   @Override
   public AsyncHttpClient getClient() {
-
-    if (INSTANCE == null)
-      INSTANCE = createInstance();
-
-    return INSTANCE;
+    /*
+     * if (INSTANCE == null) INSTANCE = createInstance();
+     */
+    return createInstance();
   }
 
   @Override
   public boolean isSharedClient() {
-    return true;
+    return false;
   }
 
 }

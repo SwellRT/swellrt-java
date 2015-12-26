@@ -19,6 +19,7 @@
 
 package org.swellrt.java;
 
+import org.swellrt.model.generic.Model;
 
 
 
@@ -40,6 +41,6 @@ public class WaveSocketFactory {
       final String sessionId,
       final WaveSocket.WaveSocketCallback callback) {
 
-    return new WaveSocketWAsync(callback, urlBase, sessionId);
+    return new WaveSocketWAsync(callback, urlBase, sessionId, Model.MODEL_VERSION);
   }
 }

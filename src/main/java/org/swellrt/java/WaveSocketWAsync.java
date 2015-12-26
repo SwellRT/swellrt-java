@@ -52,6 +52,7 @@ public class WaveSocketWAsync implements WaveSocket {
   private Socket socket = null;
   private final WaveSocketCallback callback;
   private String sessionId;
+  private String clientVer;
 
   /**
    *
@@ -87,10 +88,12 @@ public class WaveSocketWAsync implements WaveSocket {
   }
 
 
-  protected WaveSocketWAsync(final WaveSocket.WaveSocketCallback callback, String urlBase, String sessionId) {
+  protected WaveSocketWAsync(final WaveSocket.WaveSocketCallback callback, String urlBase,
+      String sessionId, String clientVersion) {
     this.urlBase = urlBase;
     this.callback = callback;
     this.sessionId = sessionId;
+    this.clientVer = clientVersion;
   }
 
 
@@ -105,9 +108,12 @@ public class WaveSocketWAsync implements WaveSocket {
         .uri(urlBase)
         .header("Cookie", "WSESSIONID=" + sessionId)
         .enableProtocol(true)
+        .queryString("X-client-version", clientVer)
         .trackMessageLength(true)
-        .transport(Request.TRANSPORT.WEBSOCKET);
-        //.transport(Request.TRANSPORT.LONG_POLLING);
+        .transport(Request.TRANSPORT.WEBSOCKET)
+        //.transport(Request.TRANSPORT.LONG_POLLING)
+        .header("X-client-version", clientVer); // Not working!!!
+
 
 
 

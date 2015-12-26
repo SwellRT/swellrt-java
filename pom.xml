@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.swellrt</groupId>
   <artifactId>swellrt-java-client</artifactId>
-  <version>0.10.0-alpha</version>
+  <version>0.13.0-alpha</version>
   <name>swellrt-client-java</name>
   <description>A native Java client for SwellRT</description>
   <licenses>
