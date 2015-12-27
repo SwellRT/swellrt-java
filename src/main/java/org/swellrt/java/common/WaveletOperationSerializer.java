@@ -184,7 +184,16 @@ public class WaveletOperationSerializer {
     for (ProtocolDocumentOperation.Component c : op.getComponent()) {
       if (c.hasAnnotationBoundary()) {
         AnnotationBoundary boundary = c.getAnnotationBoundary();
-        if (boundary.getEmpty()) {
+
+        boolean emptyBoundary = true;
+
+        try {
+          emptyBoundary = boundary.getEmpty();
+        } catch (Exception e) {
+
+        }
+
+        if (emptyBoundary) {
           output.annotationBoundary(AnnotationBoundaryMapImpl.EMPTY_MAP);
         } else {
           String[] ends = boundary.getEnd().toArray(new String[boundary.getEnd().size()]);
@@ -271,12 +280,12 @@ public class WaveletOperationSerializer {
 
   /**
    * Serializes a {@link DocOp} as a {@link ProtocolDocumentOperation}.
-   * 
+   *
    * Adapted version for {@link ComponentGsonImpl} components. Components are
    * populated before being added to
    * {@link ProtocolDocumentOperationGsonImpl#addComponent} because this method
    * adds a copy of the argument value (a hard pass-by-value semantic).
-   * 
+   *
    * @param inputOp
    *          document operation to serialize
    * @return serialized protocol buffer document operation
