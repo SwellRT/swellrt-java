@@ -79,6 +79,7 @@ public class DefaultAHCProvider implements AHCProvider {
     // AsyncHttpClient ahc = new AsyncHttpClient(new
     // GrizzlyAsyncHttpProvider(ahcConfig), ahcConfig);
 
+
     return new AsyncHttpClient(ahcConfigBuilder.build());
 
   }
@@ -87,15 +88,16 @@ public class DefaultAHCProvider implements AHCProvider {
 
   @Override
   public AsyncHttpClient getClient() {
-    /*
-     * if (INSTANCE == null) INSTANCE = createInstance();
-     */
-    return createInstance();
+
+    if (INSTANCE == null)
+      INSTANCE = createInstance();
+
+    return INSTANCE;
   }
 
   @Override
   public boolean isSharedClient() {
-    return false;
+    return true;
   }
 
 }
