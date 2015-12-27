@@ -200,13 +200,13 @@ public class Channel {
 
     Preconditions.checkArgument(!isClosed, "Channel is closed");
 
-    webSocketClient.disconnect();
-
     for (WaveRef waveRef : waveStore.keySet()) {
       WaveLoader loader = waveStore.get(waveRef).getFirst();
       // remoteServiceChannel.close(id, stream);
       loader.close();
     }
+
+    webSocketClient.disconnect();
 
     waveStore.clear();
     isClosed = true;
