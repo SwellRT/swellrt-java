@@ -3,9 +3,16 @@ package org.swellrt.java;
 
 
 import java.io.IOException;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.X509TrustManager;
 
 import org.atmosphere.wasync.ClientFactory;
 import org.atmosphere.wasync.Event;
@@ -14,9 +21,13 @@ import org.atmosphere.wasync.Request;
 import org.atmosphere.wasync.Socket;
 import org.atmosphere.wasync.impl.AtmosphereClient;
 import org.atmosphere.wasync.impl.AtmosphereRequest.AtmosphereRequestBuilder;
+import org.atmosphere.wasync.impl.DefaultOptionsBuilder;
 import org.slf4j.LoggerFactory;
 import org.waveprotocol.wave.model.util.Base64DecoderException;
 import org.waveprotocol.wave.model.util.CharBase64;
+
+import com.ning.http.client.AsyncHttpClient;
+import com.ning.http.client.AsyncHttpClientConfig;
 
 /**
  * A WaveSocket implementation backed by an Atmosphere/WAsync client.
@@ -43,10 +54,6 @@ public class WaveSocketWAsync implements WaveSocket {
    */
   final static String WAVE_MESSAGE_END_MARKER = "}|";
 
-  /**
-   * Configure this provider before using the client
-   */
-  public static AHCProvider asyncHttpClientProvider = new DefaultAHCProvider();
 
   private final String urlBase;
   private Socket socket = null;
@@ -54,6 +61,7 @@ public class WaveSocketWAsync implements WaveSocket {
   private String sessionId;
   private String clientVer;
 
+  AsyncHttpClient ahc;
   /**
    *
    * See {@WaveSocketCallbackSwellRT} for more info
@@ -97,22 +105,169 @@ public class WaveSocketWAsync implements WaveSocket {
   }
 
 
+  public static boolean DISABLE_SSL_CHECK = true;
+
+  protected AsyncHttpClientConfig.Builder configureAHC() {
+
+    /*
+     * Configure the Grizzly provider in the Async Http Client: <a href=
+     * 'http://github.com/Atmosphere/wasync/wiki/Configuring-the-underlying-AHC-provider'>configure
+     * AHC</a>
+     */
+
+    AsyncHttpClientConfig.Builder ahcConfigBuilder = new AsyncHttpClientConfig.Builder();
+
+    // Allow connections from any server, please use only for debug purpose
+    if (DISABLE_SSL_CHECK) {
+
+
+      HostnameVerifier hostnameVerifier = new HostnameVerifier() {
+        public boolean verify(String hostname, SSLSession session) {
+          return true;
+        }
+      };
+
+      // References to AsycHttpClient, Grizzly and SSL
+      // https://groups.google.com/forum/#!topic/asynchttpclient/wgaAs3lszbI
+      // http://stackoverflow.com/questions/21833804/how-to-make-https-calls-using-asynchttpclient
+
+      // Issue 93740: Lollipop breaks SSL/TLS connections when using Jetty
+      // https://code.google.com/p/android/issues/detail?id=93740
+
+      // Support for SSL connections accepting self signed cert
+      SSLContext sslContext = null;
+      try {
+        sslContext = SSLContext.getInstance("TLS");
+
+        sslContext.init(null, new X509TrustManager[] { new X509TrustManager() {
+
+          public void checkClientTrusted(X509Certificate[] chain, String authType)
+              throws CertificateException {
+          }
+
+          public void checkServerTrusted(X509Certificate[] chain, String authType)
+              throws CertificateException {
+          }
+
+          public X509Certificate[] getAcceptedIssuers() {
+            return new X509Certificate[] {};
+          }
+
+        } }, new SecureRandom());
+
+      } catch (Exception e) {
+        Log.error("Error creating SSLContext", e);
+      }
+
+      ahcConfigBuilder.setSSLContext(sslContext).setHostnameVerifier(hostnameVerifier);
+    }
+
+      return ahcConfigBuilder;
+
+  }
+
 
   @Override
   public void connect() {
 
+    // Use Grizzly only with WAsync 2.1.2
+    /*
+     * ahc = new AsyncHttpClient(new GrizzlyAsyncHttpProvider( new
+     * AsyncHttpClientConfig.Builder().build()));
+     */
+
+    AsyncHttpClientConfig ahcConfig = configureAHC().build();
+    ahc = new AsyncHttpClient(ahcConfig);
 
     AtmosphereClient client = ClientFactory.getDefault().newClient(AtmosphereClient.class);
 
-    AtmosphereRequestBuilder requestBuilder = client.newRequestBuilder().method(Request.METHOD.GET)
+    DefaultOptionsBuilder optionsBuilder = client.newOptionsBuilder();
+    optionsBuilder.runtime(ahc);
+
+    socket = client.create(optionsBuilder.build())
+
+    .on(Event.STATUS.name(), new Function<String>() {
+
+      @Override
+      public void on(String status) {
+        Log.info("STATUS");
+      }
+
+    })
+
+    .on(Event.OPEN.name(), new Function<String>() {
+
+      @Override
+      public void on(String arg0) {
+        Log.info("CONNECT");
+        callback.onConnect();
+      }
+
+    }).on(Event.CLOSE.name(), new Function<String>() {
+
+      @Override
+      public void on(String arg0) {
+        Log.info("CLOSE");
+        callback.onDisconnect();
+      }
+
+    }).on(Event.REOPENED.name(), new Function<String>() {
+
+      @Override
+      public void on(String arg0) {
+        Log.info("REOPENED");
+        callback.onConnect();
+      }
+
+    }).on(Event.MESSAGE.name(), new Function<String>() {
+
+      @Override
+      public void on(String encodedMessage) {
+
+        String message = null;
+        try {
+          message = new String(CharBase64.decode(encodedMessage));
+        } catch (Base64DecoderException e) {
+          return;
+        }
+
+          // Ignore heart-beat messages
+          // NOTE: is heart beat string always " "?
+        if (message == null || message.isEmpty() || message.startsWith(" ")
+            || message.startsWith("  "))
+            return;
+
+        if (isPackedWaveMessage(message)) {
+          List<String> unpacked = unpackWaveMessages(message);
+            for (String s : unpacked) {
+              callback.onMessage(s);
+            }
+
+          } else {
+          callback.onMessage(message);
+          }
+
+      }
+
+    }).on(new Function<Throwable>() {
+
+      @Override
+      public void on(Throwable t) {
+        Log.info("ON Exception");
+        callback.onDisconnect();
+      }
+
+    });
+
+
+    AtmosphereRequestBuilder requestBuilder = client.newRequestBuilder()
+        .method(Request.METHOD.GET)
         .uri(urlBase)
-        .header("Cookie", "WSESSIONID=" + sessionId)
         .enableProtocol(true)
         .queryString("X-client-version", clientVer)
         .trackMessageLength(true)
-        .transport(Request.TRANSPORT.WEBSOCKET)
-        //.transport(Request.TRANSPORT.LONG_POLLING)
-        .header("X-client-version", clientVer); // Not working!!!
+        // .transport(Request.TRANSPORT.LONG_POLLING)
+        .header("Cookie", "WSESSIONID=" + sessionId).transport(Request.TRANSPORT.WEBSOCKET);
 
 
 
@@ -122,84 +277,8 @@ public class WaveSocketWAsync implements WaveSocket {
     // long-polling connection
 
 
-    socket = client
-        .create(
-            client.newOptionsBuilder().runtime(asyncHttpClientProvider.getClient())
-                .runtimeShared(asyncHttpClientProvider.isSharedClient()).build())
-        .on(Event.OPEN.name(), new Function<String>() {
-
-          @Override
-          public void on(String arg0) {
-            callback.onConnect();
-          }
-
-        }).on(Event.CLOSE.name(), new Function<String>() {
-
-          @Override
-          public void on(String arg0) {
-            callback.onDisconnect();
-          }
-
-        }).on(Event.REOPENED.name(), new Function<String>() {
-
-          @Override
-          public void on(String arg0) {
-            callback.onConnect();
-          }
-
-
-        }).on(Event.MESSAGE.name(), new Function<String>() {
-
-          @Override
-          public void on(String message) {
-
-            // Log.info("Raw message: " + message);
-
-            try {
-
-              // Decode from Base64 because of Atmosphere Track Message Lenght server
-              // feauture
-              // NOTE: no Charset is specified, so this relies on UTF-8 as default
-              // charset
-              String decoded = new String(CharBase64.decode(message));
-              // Log.info("Decoded message: " + decoded);
-
-              // Ignore heart-beat messages
-              // NOTE: is heart beat string always " "?
-              if (decoded == null || decoded.isEmpty() || decoded.startsWith(" ")
-                  || decoded.startsWith("  ")) return;
-
-
-              if (isPackedWaveMessage(decoded)) {
-                List<String> unpacked = unpackWaveMessages(decoded);
-                for (String s : unpacked) {
-                  callback.onMessage(s);
-                }
-
-              } else {
-                // Filter non JSON messages
-                // TODO remove, use atmosphere client properly
-                if (decoded.startsWith("{"))
-                  callback.onMessage(decoded);
-              }
-
-            } catch (Base64DecoderException e) {
-              Log.error("Error decoding Base64 message from WebSocket", e);
-            }
-
-          }
-
-        }).on(new Function<Throwable>() {
-
-          @Override
-          public void on(Throwable t) {
-            callback.onDisconnect();
-          }
-
-        });
-
     try {
-      socket.open(requestBuilder.build(), -1, TimeUnit.MILLISECONDS);
+      socket.open(requestBuilder.build());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -208,6 +287,8 @@ public class WaveSocketWAsync implements WaveSocket {
   @Override
   public void disconnect() {
     socket.close();
+    ahc.getProvider().close();
+    ahc.close();
   }
 
 

@@ -2,6 +2,13 @@ package org.swellrt.java.client;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.X509Certificate;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +24,39 @@ public class Session {
   public static final String USER_ANONYMOUS = "_anonymous_";
 
   final static Logger Log = LoggerFactory.getLogger(Session.class);
+
+  public static void disableSSLcheck() {
+
+    //
+    // Global -------------------------------------------
+    //
+
+    // Create a trust manager that does not validate certificate chains
+    SSLContext ctx = null;
+    TrustManager[] trustAllCerts = new X509TrustManager[] { new X509TrustManager() {
+      public X509Certificate[] getAcceptedIssuers() {
+        return null;
+      }
+
+      public void checkClientTrusted(X509Certificate[] certs, String authType) {
+      }
+
+      public void checkServerTrusted(X509Certificate[] certs, String authType) {
+      }
+    } };
+    try {
+      ctx = SSLContext.getInstance("SSL");
+      ctx.init(null, trustAllCerts, null);
+    } catch (NoSuchAlgorithmException | KeyManagementException e) {
+      Log.info("Error loading ssl context {}", e.getMessage());
+    }
+
+    SSLContext.setDefault(ctx);
+    //
+    // --------------------------------------------------
+    //
+
+  }
 
   public static Session create(String host, String username, String password)
       throws MalformedURLException, InvalidParticipantAddress {
@@ -99,7 +139,7 @@ public class Session {
         }
       });
 
-      channel.openModel("local.net/s+y7Ukjg1ktpA", new ChannelOperationCallback() {
+      channel.createModel(new ChannelOperationCallback() {
 
         @Override
         public void onSuccess(Model model) {

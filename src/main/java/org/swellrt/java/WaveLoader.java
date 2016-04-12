@@ -234,7 +234,7 @@ public class WaveLoader {
     // LoggerBundle logger = LoggerBundle.NOP_IMPL;
 
     LoggerBundle loggerOps = new JavaLoggerBundle("WaveProtocol::ops");
-    LoggerBundle loggerDeltas = new JavaLoggerBundle("WaveProtocol::deltas", true);
+    LoggerBundle loggerDeltas = new JavaLoggerBundle("WaveProtocol::deltas", false);
     LoggerBundle loggerCc = new JavaLoggerBundle("WaveProtocol::CC");
     LoggerBundle loggerView = new JavaLoggerBundle("WaveProtocol::view");
 
@@ -258,6 +258,7 @@ public class WaveLoader {
 
       @Override
       public void destroy(WaveletId waveletId) {
+        System.err.println("Wavelet Destroyed!!!!!!!!");
       }
     };
 

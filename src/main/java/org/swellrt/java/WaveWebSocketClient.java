@@ -158,6 +158,8 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
    */
   public void connect(ConnectionListener listener) {
 
+    Preconditions.checkNotNull(httpSessionId, "Session id is null");
+
     connectionListener = listener;
 
     if (socket == null) {
@@ -184,7 +186,7 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
     // Sends the session cookie to the server via an RPC to work around browser bugs.
     // See: http://code.google.com/p/wave-protocol/issues/detail?id=119
 
-    if (httpSessionId != null && !connectedAtLeastOnce) {
+    if (!connectedAtLeastOnce) {
       ProtocolAuthenticateGsonImpl auth = new ProtocolAuthenticateGsonImpl();
       auth.setToken(httpSessionId);
       sendMessage(sequenceNo++, "ProtocolAuthenticate", auth.toGson(null, null));
@@ -214,6 +216,27 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
   }
 
   public void onMessage(final String message) {
+
+    if (connected == ConnectState.DISCONNECTED)
+      return;
+
+    if (message.startsWith("X-RESPONSE:")) {
+      String[] responseTokens = message.split(":");
+      String response = responseTokens.length > 1 ? responseTokens[1] : "";
+
+      if (response.equals("UPGRADE")) {
+        Log.error("Wave Client requires upgrade!");
+        disconnect();
+        return;
+
+      } else if (response.equals("SERVER_ERROR")) {
+        String reason = responseTokens.length > 2 ? responseTokens[2] : "";
+        Log.error("Server error: " + reason);
+        disconnect();
+        return;
+      }
+    }
+
     Log.debug("Received JSON message " + message);
     MessageWrapper wrapper;
     wrapper = MessageWrapper.deserialize(gson, message);
@@ -287,6 +310,7 @@ public class WaveWebSocketClient implements WaveSocket.WaveSocketCallback {
    * Force underlying communication staff to stop.
    */
   public void disconnect() {
+    connected = ConnectState.DISCONNECTED;
     socket.disconnect();
   }
 
