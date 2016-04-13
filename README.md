@@ -34,6 +34,18 @@ ant -f build-swellrt.xml compile  dist-swellrt-client-commons
 ant -f build-swellrt.xml swellrt-mvn-install-client-commons
 ```
 
+This tasks will generate and install the dependencies in your local Maven repository.
+
+Take note of the version from the generated Jar artifact `build/swellrt/swellrt-client-commons-XX.YY.ZZ-alpha.jar` and update the `pom.xml` of the Java client project as follows:
+
+```
+<dependency>
+  <groupId>org.swellrt</groupId>
+  <artifactId>swellrt-client-commons</artifactId>
+  <version>XX.YY.ZZ-alpha</version>
+</dependency>
+```
+
 ## Run Chat example
 
 We include a simple cmd-line "Chat". By default, it uses the public SwellRT demo server at "https://demo.swellrt.org"
